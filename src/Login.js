@@ -1,27 +1,25 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
-function Login() {
+function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
 
   const handleLogin = () => {
-  if (!email || !password) {
-    alert("Please enter email and password");
-    return;
-  }
-
-  setTimeout(() => {
-    if (email === "test@gmail.com" && password === "1234") {
-      localStorage.setItem("token", "dummy-token");
-      alert("Login successful");
-      navigate("/dashboard");
-    } else {
-      alert("Invalid credentials");
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
     }
-  }, 500);
-};
+
+    setTimeout(() => {
+      if (email === "test@gmail.com" && password === "1234") {
+        alert("Login successful");
+        onLogin(); // ✅ THIS replaces navigation
+      } else {
+        alert("Invalid credentials");
+      }
+    }, 500);
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
