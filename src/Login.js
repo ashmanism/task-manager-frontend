@@ -1,29 +1,81 @@
 import { useState } from "react";
+import API from "./services/api";
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       alert("Please enter email and password");
       return;
     }
 
-    setTimeout(() => {
-      if (email === "test@gmail.com" && password === "1234") {
-        alert("Login successful");
-        onLogin(); // ✅ THIS replaces navigation
-      } else {
-        alert("Invalid credentials");
-      }
-    }, 500);
+    setLoading(true);
+
+    try {
+      const res = await API.post("/auth/login", {
+        email,
+        password
+      });
+
+      sessionStorage.setItem("token", res.data.token);
+      alert("Login successful");
+      onLogin();
+
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.msg || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    if (!name || !email || !password) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await API.post("/auth/signup", {
+        name,
+        email,
+        password
+      });
+
+      sessionStorage.setItem("token", res.data.token);
+      alert("Signup successful");
+      onLogin();
+
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.msg || "Signup failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
         <h2>Task Manager</h2>
+
+        {/* 👇 Name only for signup */}
+        {showSignup && (
+          <input
+            type="text"
+            placeholder="Name"
+            style={styles.input}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        )}
 
         <input
           type="email"
@@ -41,9 +93,27 @@ function Login({ onLogin }) {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button style={styles.button} onClick={handleLogin}>
-          Login
+        <button
+          style={styles.button}
+          onClick={showSignup ? handleSignup : handleLogin}
+          disabled={loading}
+        >
+          {loading
+            ? "Processing..."
+            : showSignup
+            ? "Signup"
+            : "Login"}
         </button>
+
+        {/* 👇 Toggle between login/signup */}
+        <p
+          style={{ marginTop: "10px", cursor: "pointer", color: "blue" }}
+          onClick={() => setShowSignup(!showSignup)}
+        >
+          {showSignup
+            ? "Already have an account? Login"
+            : "Don't have an account? Signup"}
+        </p>
       </div>
     </div>
   );

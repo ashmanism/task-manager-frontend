@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/MyNavbar";
 import AddTask from "./pages/AddTask";
@@ -6,156 +6,157 @@ import TaskList from "./pages/TaskList";
 import Overview from "./pages/Overview";
 import Login from "./Login";
 
+import {
+  getTasks,
+  addTask as createTask,
+  updateTask,
+  deleteTask as removeTask,
+  toggleTaskStatus
+} from "./services/taskService";
+
 function App() {
   const [page, setPage] = useState("list");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const DEV_MODE = true;
 
-  // 🧠 Shared state
+  const [isLoggedIn, setIsLoggedIn] = useState(DEV_MODE);
+
   const [tasks, setTasks] = useState([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [reminder, setReminder] = useState(5);
   const [editId, setEditId] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [filters, setFilters] = useState({});
 
-  console.log("Sidebar:", Sidebar);
-  console.log("Navbar:", Navbar);
-  console.log("AddTask:", AddTask);
-  console.log("TaskList:", TaskList);
-  console.log("Overview:", Overview);
-  console.log("Login:", Login);
+  // ✅ NEW STATES
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // 🔒 Check login on load
+  // =========================
+  // 📦 LOAD TASKS
+  // =========================
+  const loadTasks = useCallback(async (customFilters = filters) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await getTasks(customFilters);
+      setTasks(data);
+    } catch (err) {
+      console.error("Error loading tasks:", err);
+      setError("Failed to load tasks. Backend may be down.");
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) setIsLoggedIn(true);
-  }, []);
+    loadTasks();
+  }, [filters, loadTasks]);
 
-  // 📦 Load tasks
-  useEffect(() => {
-    const saved = localStorage.getItem("tasks");
-    if (saved) setTasks(JSON.parse(saved));
-  }, []);
-
-  // 💾 Save tasks
-  useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
-
-  // ⏰ Reminder system
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-
-      setTasks((prev) =>
-        prev.map((task) => {
-          if (!task.deadline || task.notified) return task;
-
-          const taskTime = new Date(task.deadline);
-          const reminderTime = new Date(
-            taskTime.getTime() - task.reminder * 60000
-          );
-
-          if (now >= reminderTime && now < taskTime) {
-            setNotifications((prev) => [
-              ...prev,
-              `${task.title} is due soon`
-            ]);
-            return { ...task, notified: true };
-          }
-
-          return task;
-        })
-      );
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
+  // =========================
   // 🔐 Auth
+  // =========================
   const handleLogin = () => {
-    localStorage.setItem("token", "dummy-token");
+    sessionStorage.setItem("token", "dummy-token");
     setIsLoggedIn(true);
     setPage("list");
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     setIsLoggedIn(false);
     setPage("list");
   };
 
-  // ➕ Add / ✏️ Edit
-  const addTask = () => {
-    if (!title) return;
+  // =========================
+  // ➕ ADD / ✏️ EDIT
+  // =========================
+  const addTask = async (taskData) => {
+    try {
+      setLoading(true);
 
-    if (editId) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === editId
-            ? { ...t, title, description, deadline, reminder }
-            : t
-        )
-      );
+      if (editId) {
+        await updateTask(editId, taskData);
+      } else {
+        await createTask(taskData);
+      }
+
+      await loadTasks();
       setEditId(null);
       setPage("list");
-    } else {
-      const newTask = {
-        id: Date.now(),
-        title,
-        description,
-        deadline,
-        reminder,
-        status: "Pending",
-        notified: false
-      };
-
-      setTasks((prev) => [...prev, newTask]);
-      setPage("list");
+    } catch (err) {
+      console.error("Error saving task:", err);
+      setError("Failed to save task");
+    } finally {
+      setLoading(false);
     }
-
-    setTitle("");
-    setDescription("");
-    setDeadline("");
-    setReminder(5);
   };
 
-  // ❌ Delete
-  const deleteTask = (id) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  // =========================
+  // ❌ DELETE
+  // =========================
+  const deleteTask = async (id) => {
+    try {
+      await removeTask(id);
+      await loadTasks();
+    } catch (err) {
+      console.error("Error deleting task:", err);
+      setError("Failed to delete task");
+    }
   };
 
-  // ✔ Toggle status
-  const toggleTask = (id) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              status: t.status === "Pending" ? "Completed" : "Pending"
-            }
-          : t
-      )
-    );
+  // =========================
+  // ✔ TOGGLE
+  // =========================
+  const toggleTask = async (task) => {
+    try {
+      await toggleTaskStatus(task);
+      await loadTasks();
+    } catch (err) {
+      console.error("Error toggling task:", err);
+      setError("Failed to update task");
+    }
   };
 
-  // ✏️ Edit
+  // =========================
+  // ✏️ EDIT
+  // =========================
   const handleEdit = (task) => {
-    setTitle(task.title);
-    setDescription(task.description);
-    setDeadline(task.deadline);
-    setReminder(task.reminder);
-    setEditId(task.id);
+    setEditId(task._id);
     setPage("add");
   };
 
-  // 🔐 Show login if not authenticated
+  // =========================
+  // 🔐 LOGIN SCREEN
+  // =========================
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
   }
 
-  // ✅ Main dashboard
+  // =========================
+  // 🚨 ERROR UI
+  // =========================
+  if (error) {
+    return (
+      <div style={styles.center}>
+        <h2>{error}</h2>
+        <button onClick={() => loadTasks()}>Retry</button>
+      </div>
+    );
+  }
+
+  // =========================
+  // ⏳ LOADING UI
+  // =========================
+  if (loading && tasks.length === 0) {
+    return (
+      <div style={styles.center}>
+        <h2>Loading tasks...</h2>
+      </div>
+    );
+  }
+
+  // =========================
+  // ✅ MAIN UI
+  // =========================
   return (
     <div style={{ display: "flex" }}>
       <Sidebar setPage={setPage} />
@@ -169,16 +170,9 @@ function App() {
 
         {page === "add" && (
           <AddTask
-            title={title}
-            setTitle={setTitle}
-            description={description}
-            setDescription={setDescription}
-            deadline={deadline}
-            setDeadline={setDeadline}
-            reminder={reminder}
-            setReminder={setReminder}
             addTask={addTask}
             editId={editId}
+            taskToEdit={tasks.find((t) => t._id === editId)}
             setEditId={setEditId}
           />
         )}
@@ -189,15 +183,25 @@ function App() {
             deleteTask={deleteTask}
             toggleTask={toggleTask}
             handleEdit={handleEdit}
+            setFilters={setFilters}
           />
         )}
 
-        {page === "overview" && (
-          <Overview tasks={tasks} />
-        )}
+        {page === "overview" && <Overview tasks={tasks} />}
       </div>
     </div>
   );
 }
 
 export default App;
+
+const styles = {
+  center: {
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "column",
+    gap: "10px"
+  }
+};

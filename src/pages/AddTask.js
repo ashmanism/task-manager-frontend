@@ -1,16 +1,59 @@
-function AddTask({
-  title,
-  setTitle,
-  description,
-  setDescription,
-  deadline,
-  setDeadline,
-  reminder,
-  setReminder,
-  addTask,
-  editId,
-  setEditId
-}) {
+import { useState, useEffect } from "react";
+
+function AddTask({ addTask, editId, taskToEdit, setEditId }) {
+  const initialState = {
+    title: "",
+    description: "",
+    dueDate: "",
+    priority: "medium",
+    status: "pending"
+  };
+
+  const [form, setForm] = useState(initialState);
+
+  // ✅ Load data for editing
+  useEffect(() => {
+    if (taskToEdit) {
+      setForm({
+        title: taskToEdit.title || "",
+        description: taskToEdit.description || "",
+        dueDate: taskToEdit.dueDate
+          ? taskToEdit.dueDate.slice(0, 16)
+          : "",
+        priority: taskToEdit.priority || "medium",
+        status: taskToEdit.status || "pending"
+      });
+    }
+  }, [taskToEdit]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = () => {
+    if (!form.title.trim()) {
+      alert("Title is required");
+      return;
+    }
+
+    const formattedData = {
+      title: form.title,
+      description: form.description,
+      dueDate: form.dueDate
+        ? new Date(form.dueDate).toISOString()
+        : null,
+      priority: form.priority,
+      status: form.status
+    };
+
+    addTask(formattedData);
+
+    // ✅ Reset cleanly
+    setForm(initialState);
+    setEditId(null);
+  };
+
   return (
     <div style={styles.container}>
       <h2 style={styles.heading}>
@@ -19,39 +62,55 @@ function AddTask({
 
       <div style={styles.form}>
         <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          name="title"
+          value={form.title}
+          onChange={handleChange}
           placeholder="Task Title"
           style={styles.input}
         />
 
         <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          name="description"
+          value={form.description}
+          onChange={handleChange}
           placeholder="Description"
           style={styles.textarea}
         />
 
-        <label style={styles.label}>Deadline</label>
+        <label style={styles.label}>Due Date</label>
         <input
           type="datetime-local"
-          value={deadline}
-          onChange={(e) => setDeadline(e.target.value)}
+          name="dueDate"
+          value={form.dueDate}
+          onChange={handleChange}
           style={styles.input}
         />
 
-        <label style={styles.label}>Reminder</label>
+        <label style={styles.label}>Priority</label>
         <select
-          value={reminder}
-          onChange={(e) => setReminder(Number(e.target.value))}
+          name="priority"
+          value={form.priority}
+          onChange={handleChange}
           style={styles.input}
         >
-          <option value={5}>5 min before</option>
-          <option value={10}>10 min before</option>
-          <option value={15}>15 min before</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
         </select>
 
-        <button onClick={addTask} style={styles.primaryButton}>
+        <label style={styles.label}>Status</label>
+        <select
+          name="status"
+          value={form.status}
+          onChange={handleChange}
+          style={styles.input}
+        >
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+
+        <button onClick={handleSubmit} style={styles.primaryButton}>
           {editId ? "Update Task" : "Add Task"}
         </button>
 

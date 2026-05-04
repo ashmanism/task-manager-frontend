@@ -1,98 +1,176 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
-function TaskList({ tasks, deleteTask, toggleTask, handleEdit }) {
-  const [filter, setFilter] = useState("All");
+function TaskList({ tasks = [], deleteTask, toggleTask, handleEdit }) {
+  const [filter, setFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
 
-  const isOverdue = (deadline) => {
-    if (!deadline) return false;
-    return new Date(deadline) < new Date();
+  // ✅ Filter tasks safely
+  const filteredTasks = useMemo(() => {
+    if (filter === "all") return tasks;
+    return tasks.filter((t) => t.status === filter);
+  }, [tasks, filter]);
+
+  // ✅ Sort tasks safely
+  const sortedTasks = useMemo(() => {
+    return [...filteredTasks].sort((a, b) => {
+      if (sortBy === "date") {
+        return (a.dueDate ? new Date(a.dueDate) : Infinity) -
+               (b.dueDate ? new Date(b.dueDate) : Infinity);
+      }
+      if (sortBy === "title") {
+        return a.title.localeCompare(b.title);
+      }
+      return 0;
+    });
+  }, [filteredTasks, sortBy]);
+
+  // ✅ Helpers
+  const getStatusLabel = (status) => {
+    if (status === "pending") return "Pending";
+    if (status === "in-progress") return "In Progress";
+    return "Completed";
   };
 
-  const filteredTasks =
-    filter === "All"
-      ? tasks
-      : tasks.filter((t) => t.status === filter);
+  const getStatusColor = (status) => {
+    if (status === "completed") return "#16a34a";
+    if (status === "in-progress") return "#3b82f6";
+    return "#f59e0b";
+  };
+
+  const formatPriority = (priority) => {
+    return priority
+      ? priority.charAt(0).toUpperCase() + priority.slice(1)
+      : "Medium";
+  };
 
   return (
     <div style={styles.container}>
       <h2 style={styles.heading}>Task List</h2>
 
-      {/* Filters */}
+      {/* 🔽 Sorting */}
+      <select
+        value={sortBy}
+        onChange={(e) => setSortBy(e.target.value)}
+        style={styles.select}
+      >
+        <option value="date">Sort by Date</option>
+        <option value="title">Sort by Title</option>
+      </select>
+
+      {/* 🔽 Filters */}
       <div style={styles.filters}>
         <button
-          style={filter === "All" ? styles.activeFilter : styles.filter}
-          onClick={() => setFilter("All")}
+          style={filter === "all" ? styles.activeFilter : styles.filter}
+          onClick={() => setFilter("all")}
         >
           All
         </button>
 
         <button
-          style={filter === "Pending" ? styles.activeFilter : styles.filter}
-          onClick={() => setFilter("Pending")}
+          style={filter === "pending" ? styles.activeFilter : styles.filter}
+          onClick={() => setFilter("pending")}
         >
           Pending
         </button>
 
         <button
-          style={filter === "Completed" ? styles.activeFilter : styles.filter}
-          onClick={() => setFilter("Completed")}
+          style={filter === "in-progress" ? styles.activeFilter : styles.filter}
+          onClick={() => setFilter("in-progress")}
+        >
+          In Progress
+        </button>
+
+        <button
+          style={filter === "completed" ? styles.activeFilter : styles.filter}
+          onClick={() => setFilter("completed")}
         >
           Completed
         </button>
       </div>
 
-      {/* Empty State */}
-      {filteredTasks.length === 0 && (
+      {/* 🔽 Empty State */}
+      {sortedTasks.length === 0 && (
         <p style={styles.empty}>No tasks found</p>
       )}
 
-      {/* Task Cards */}
-      {filteredTasks.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            ...styles.card,
-            borderLeft: isOverdue(t.deadline)
-              ? "5px solid red"
-              : "5px solid #3b82f6"
-          }}
-        >
-          {/* Left Content */}
-          <div style={styles.content}>
-            <h3 style={styles.title}>{t.title}</h3>
+      {/* 🔽 Task Cards */}
+      {sortedTasks.map((t) => {
+        const overdue = t.isOverdue;
+        const isCompleted = t.status === "completed";
 
-            <p style={styles.description}>{t.description}</p>
+        return (
+          <div
+            key={t._id}
+            style={{
+              ...styles.card,
+              borderLeft: overdue
+                ? "5px solid red"
+                : "5px solid #3b82f6",
+              backgroundColor: overdue
+                ? "#fee2e2"
+                : isCompleted
+                ? "#dcfce7"
+                : "#fff"
+            }}
+          >
+            {/* Content */}
+            <div style={styles.content}>
+              <h3 style={styles.title}>{t.title}</h3>
 
-            <p style={styles.meta}>
-              📅{" "}
-              {t.deadline
-                ? new Date(t.deadline).toLocaleString()
-                : "No deadline"}
-            </p>
+              <p style={styles.description}>
+                {t.description || "No description"}
+              </p>
 
-            <p style={styles.meta}>
-              🔔 {t.reminder} min before
-            </p>
+              <p style={styles.meta}>
+                📅{" "}
+                {t.dueDate
+                  ? new Date(t.dueDate).toLocaleString()
+                  : "No due date"}
+              </p>
 
-            <span
-              style={{
-                ...styles.status,
-                background:
-                  t.status === "Completed" ? "#16a34a" : "#f59e0b"
-              }}
-            >
-              {t.status}
-            </span>
+              <p style={styles.meta}>
+                ⚡ {formatPriority(t.priority)} Priority
+              </p>
+
+              <span
+                style={{
+                  ...styles.status,
+                  background: getStatusColor(t.status)
+                }}
+              >
+                {getStatusLabel(t.status)}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div style={styles.actions}>
+              <button
+                style={styles.actionBtn}
+                title="Toggle Status"
+                onClick={() => toggleTask(t)}
+              >
+                ✔
+              </button>
+
+              <button
+                style={styles.actionBtn}
+                title="Edit Task"
+                onClick={() => handleEdit(t)}
+              >
+                ✏️
+              </button>
+
+              <button
+                style={styles.actionBtn}
+                title="Delete Task"
+                onClick={() => deleteTask(t._id)}
+              >
+                ❌
+              </button>
+            </div>
           </div>
-
-          {/* Actions */}
-          <div style={styles.actions}>
-            <button onClick={() => toggleTask(t.id)}>✔</button>
-            <button onClick={() => handleEdit(t)}>✏️</button>
-            <button onClick={() => deleteTask(t.id)}>❌</button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -105,6 +183,11 @@ const styles = {
   },
   heading: {
     marginBottom: "15px"
+  },
+  select: {
+    marginBottom: "10px",
+    padding: "6px",
+    borderRadius: "5px"
   },
   filters: {
     display: "flex",
@@ -126,7 +209,8 @@ const styles = {
     borderRadius: "5px"
   },
   empty: {
-    color: "#777"
+    color: "#777",
+    marginTop: "10px"
   },
   card: {
     display: "flex",
@@ -163,5 +247,11 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "8px"
+  },
+  actionBtn: {
+    border: "none",
+    cursor: "pointer",
+    padding: "6px",
+    borderRadius: "4px"
   }
 };

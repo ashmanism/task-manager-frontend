@@ -1,39 +1,54 @@
-function Overview({ tasks }) {
+function Overview({ tasks = [] }) {
   const now = new Date();
+
+  const isSameDay = (d1, d2) =>
+    d1.toISOString().slice(0, 10) === d2.toISOString().slice(0, 10);
 
   const today = tasks.filter(
     (t) =>
-      t.deadline &&
-      new Date(t.deadline).toDateString() === now.toDateString()
+      t.dueDate &&
+      isSameDay(new Date(t.dueDate), now)
   );
 
   const upcoming = tasks.filter(
     (t) =>
-      t.deadline &&
-      new Date(t.deadline) > now &&
-      t.status !== "Completed"
+      t.dueDate &&
+      new Date(t.dueDate) > now &&
+      t.status !== "completed"
   );
 
-  const overdue = tasks.filter(
-    (t) =>
-      t.deadline &&
-      new Date(t.deadline) < now &&
-      t.status !== "Completed"
-  );
+  const overdue = tasks.filter((t) => t.isOverdue);
+
+  // ✅ Stats (important)
+  const stats = {
+    total: tasks.length,
+    completed: tasks.filter((t) => t.status === "completed").length,
+    overdue: overdue.length
+  };
 
   const Section = ({ title, items, color }) => (
     <div style={styles.section}>
-      <h3 style={{ ...styles.sectionTitle, color }}>{title}</h3>
+      <h3 style={{ ...styles.sectionTitle, color }}>
+        {title} ({items.length})
+      </h3>
 
       {items.length === 0 && (
         <p style={styles.empty}>No tasks</p>
       )}
 
       {items.map((t) => (
-        <div key={t.id} style={styles.card}>
+        <div key={t._id} style={styles.card}>
           <h4 style={styles.taskTitle}>{t.title}</h4>
+
           <p style={styles.meta}>
-            📅 {new Date(t.deadline).toLocaleString()}
+            📅{" "}
+            {t.dueDate
+              ? new Date(t.dueDate).toLocaleString()
+              : "No due date"}
+          </p>
+
+          <p style={styles.meta}>
+            ⚡ {t.priority}
           </p>
         </div>
       ))}
@@ -43,6 +58,13 @@ function Overview({ tasks }) {
   return (
     <div style={styles.container}>
       <h2 style={styles.heading}>Overview</h2>
+
+      {/* 🔥 Stats */}
+      <div style={styles.stats}>
+        <div>Total: {stats.total}</div>
+        <div>Completed: {stats.completed}</div>
+        <div>Overdue: {stats.overdue}</div>
+      </div>
 
       <div style={styles.grid}>
         <Section title="Today" items={today} color="#3b82f6" />
