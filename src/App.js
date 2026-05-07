@@ -16,16 +16,17 @@ import {
 
 function App() {
   const [page, setPage] = useState("list");
-  const DEV_MODE = true;
 
-  const [isLoggedIn, setIsLoggedIn] = useState(DEV_MODE);
+  // Check for existing token on mount
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    () => !!sessionStorage.getItem("token")
+  );
 
   const [tasks, setTasks] = useState([]);
   const [editId, setEditId] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [filters, setFilters] = useState({});
 
-  // ✅ NEW STATES
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -48,14 +49,14 @@ function App() {
   }, [filters]);
 
   useEffect(() => {
-    loadTasks();
-  }, [filters, loadTasks]);
+    if (isLoggedIn) loadTasks();
+  }, [filters, loadTasks, isLoggedIn]);
 
   // =========================
   // 🔐 Auth
   // =========================
   const handleLogin = () => {
-    sessionStorage.setItem("token", "dummy-token");
+    // token is already stored in sessionStorage by Login.js
     setIsLoggedIn(true);
     setPage("list");
   };
@@ -63,8 +64,10 @@ function App() {
   const logout = () => {
     sessionStorage.removeItem("token");
     setIsLoggedIn(false);
+    setTasks([]);
     setPage("list");
   };
+
 
   // =========================
   // ➕ ADD / ✏️ EDIT

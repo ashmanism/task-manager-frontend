@@ -15,4 +15,16 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
+// 🔄 Handle 401 Unauthorized globally
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      sessionStorage.removeItem("token");
+      window.location.href = "/"; // Force redirect to login
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default API;

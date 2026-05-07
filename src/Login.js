@@ -22,13 +22,17 @@ function Login({ onLogin }) {
         password
       });
 
-      sessionStorage.setItem("token", res.data.token);
-      alert("Login successful");
-      onLogin();
+      if (res.data && res.data.data && res.data.data.token) {
+        sessionStorage.setItem("token", res.data.data.token);
+        alert("Login successful");
+        onLogin();
+      } else {
+        throw new Error("Invalid response from server");
+      }
 
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.msg || "Login failed");
+      alert(err.response?.data?.message || err.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -49,13 +53,17 @@ function Login({ onLogin }) {
         password
       });
 
-      sessionStorage.setItem("token", res.data.token);
-      alert("Signup successful");
-      onLogin();
+      if (res.data && res.data.data && res.data.data.token) {
+        sessionStorage.setItem("token", res.data.data.token);
+        alert("Signup successful");
+        onLogin();
+      } else {
+        throw new Error("Invalid response from server");
+      }
 
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.msg || "Signup failed");
+      alert(err.response?.data?.message || err.message || "Signup failed");
     } finally {
       setLoading(false);
     }
